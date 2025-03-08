@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class AuthController extends Controller
@@ -25,13 +27,65 @@ class AuthController extends Controller
                 'errors' => $validateUser->errors()->all(),
             ],401);
         }
+
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => $request->password
+        ]);
+
+        return response()->json([
+            'status' => true,
+            'message' => 'User Create Successfully',
+            'user' => $user
+        ],200);
     }
 
-    public function signup(Request $request){
+    public function login(Request $request){
+        $validateUser = Validator::make(
+            $request->all(),
+            [
+                'email' => 'required|email',
+                'password' => 'required'
+            ]
+        );
 
+        if($validateUser->fails()){
+            return response()->json([
+                'status' => false,
+                'message' => 'Authentication Fails',
+                'errors' => $validateUser->errors()->all(),
+            ],401);
+        }
+
+        if(Auth::attempt(['email' => $request->email, 'password' => $request->password])){
+            $authUser = Auth::user();
+
+            return response()->json([
+                'status' => true,
+                'message' => 'User Loged in Successfully',
+                'token' => $authUser->createToken("Create API Token")->plainTextToken,
+                'token_type' => 'bearer'
+            ],200);
+        }else{
+            if($validateUser->fails()){
+                return response()->json([
+                    'status' => false,
+                    'message' => 'Email and Password not match',
+                ],401);
+            }
+        }
     }
 
-    public function signup(Request $request){
+    public function logout(Request $request){
+        $user = $request->user();
+        $user->tokens()->delete();
+
+        return response()->json([
+            'status' => true,
+            'user' => $user,
+            'message' => 'You Logged Out Successfully'
+        ],200);
 
     }
 }
